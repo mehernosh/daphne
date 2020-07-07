@@ -10,6 +10,7 @@ from twisted.web import http
 from zope.interface import implementer
 
 from .utils import parse_x_forwarded_for
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,33 @@ class WebRequest(http.Request):
 
     @inlineCallbacks
     def process(self):
+        try:
+            groupid = ""
+            if b"inbound_email" in self.path:
+                groupid=f"@debugging@ inbound_email {uuid4()}"
+                logger.warning(f"{groupid} About to serve {self.path}")
+                try:
+                    payload = self.content.read()
+                    logger.warning(f"{groupid} Payload {payload}")
+                except Exception:
+                    logger.exception(f"{groupid} Parsing payload failed")
+                finally:
+                    self.content.seek(0, 0)
+
+                try:
+                    for k, v in self.requestHeaders.getAllRawHeaders():
+                        logger.warning(f"{groupid} Header Key: {k}")
+                        logger.warning(f"{groupid} Header Value: {v}")
+                except Exception:
+                    logger.exception(f"{groupid} Parsing raw headers failed")
+                try:
+                    logger.warning(f"{groupid} Parsed headers {self.getAllHeaders()}")
+                except Exception:
+                    logger.exception(f"{groupid} Getting parsed headers failed")
+        except Exception:
+            logger.exception(
+                f"{groupid} Error checking for inbound_email in path failed"
+            )
         try:
             self.request_start = time.time()
             # Get upgrade header
